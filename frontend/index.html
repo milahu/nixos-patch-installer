@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="shortcut icon" type="image/png" href="/favicon.png" />
+    <title>nqp nix-quickpatch</title>
+
+<!-- TODO use solidJS styled components -->
+<style>
+  ul.file-list {
+    text-align: left;
+  }
+  ul.file-list, ul.file-list ul {
+    list-style: none;
+    padding: 0;
+  }
+  ul.file-list li.dir > span {
+    color: yellow;
+  }
+  ul.file-list li.dir > ul {
+    display: none; /* default collapsed */
+    outline: solid 1px black;
+  }
+  ul.file-list li.dir.expanded > ul {
+    display: block;
+  }
+  li.dir-maxdepth { color: blue; }
+  li.symlink .source { color: green; }
+  li.file { color: red; }
+</style>
+
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+
+    <script src="./src/index.jsx" type="module"></script>
+  </body>
+</html>

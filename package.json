@@ -1,0 +1,27 @@
+{
+  "name": "nixos-patch-installer",
+  "version": "0.0.1",
+  "description": "Install patches from Github pull requests directly to your NixOS machine",
+  "private": true,
+  "keywords": [
+    "nixos",
+    "patch",
+    "nixpkgs",
+    "overlayfs",
+    "gui",
+    "point and click",
+    "chrome-extension",
+    "browser-extension",
+    "extension",
+    "javascript",
+    "solid-js",
+    "solidjs",
+    "rollup"
+  ],
+  "homepage": "https://github.com/milahu/nixos-patch-installer",
+  "bugs": { "url": "https://github.com/milahu/nixos-patch-installer/issues" },
+  "repository": { "type": "git", "url": "git+https://github.com/milahu/nixos-patch-installer.git" },
+  "author": "milahu",
+  "license": "CC0-1.0",
+  "birthday": "2021-04-01"
+}

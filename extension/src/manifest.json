@@ -1,0 +1,24 @@
+{
+  "name": "NixOS Patch Installer Extension",
+  "version": "0.0.1",
+  "description": "Install patches from Github pull requests to your NixOS machine",
+  "homepage_url": "http://github.com/milahu",
+  "manifest_version": 2,
+  "browser_action": { "default_popup": "popup/index.html" },
+  "background": { "scripts": ["background.js"] },
+  "content_scripts": [
+    {
+      "js": ["content.js"],
+      "matches": [
+      	"https://github.com/NixOS/nixpkgs/pull/*"
+      ]
+    }
+  ],
+  "icons": {
+    "24": "/images/nixos.svg.24.png",
+    "48": "/images/nixos.svg.48.png"
+  },
+  "permissions": [
+    "storage"
+  ]
+}

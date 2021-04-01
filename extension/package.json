@@ -1,0 +1,48 @@
+{
+  "name": "nixos-patch-installer-extension",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "cross-env NODE_ENV=development rollup -c -w",
+    "serve": "sirv dist --no-clear"
+  },
+  "basedOn": [
+    "https://github.com/kyrelldixon/svelte-tailwind-extension-boilerplate",
+    "https://github.com/high1/solid-typescript-rollup",
+    "https://github.com/MrFoxPro/solid-rollup-boilerplate"
+  ],
+  "devDependencies": {
+    "@babel/core": "*",
+    "@babel/preset-env": "*",
+    "@rollup/plugin-babel": "*",
+    "@rollup/plugin-commonjs": "*",
+    "@rollup/plugin-node-resolve": "*",
+    "@rollup/plugin-replace": "*",
+    "@rollup/plugin-url": "*",
+    "autoprefixer": "*",
+    "babel-preset-solid": "*",
+    "cross-env": "*",
+    "nollup": "*",
+    "npm-run": "*",
+    "npm-run-all": "*",
+    "postcss": "*",
+    "rollup": "*",
+    "rollup-plugin-chrome-extension": "*",
+    "rollup-plugin-copy": "*",
+    "rollup-plugin-css-only": "*",
+    "rollup-plugin-empty-dir": "*",
+    "rollup-plugin-hot-css": "*",
+    "rollup-plugin-livereload": "*",
+    "rollup-plugin-postcss": "*",
+    "rollup-plugin-serve": "*",
+    "rollup-plugin-static-files": "*",
+    "rollup-plugin-terser": "*",
+    "rollup-plugin-zip": "*",
+    "solid-js": "*",
+    "solid-styled-components": "*"
+  },
+  "dependencies": {
+    "sirv-cli": "*"
+  }
+}

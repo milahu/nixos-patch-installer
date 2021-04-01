@@ -1,0 +1,19 @@
+{
+  "name": "nixos-patch-installer-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "vite --clearScreen false",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "highlight.js": "*",
+    "octonode": "*",
+    "solid-styled-components": "*",
+    "vite": "*",
+    "vite-plugin-solid": "*"
+  },
+  "dependencies": {
+    "solid-js": "*"
+  }
+}

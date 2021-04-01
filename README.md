@@ -1,4 +1,6 @@
-# nixos patch installer
+<img align="left" src="extension/src/images/nixos.svg" width="56" height="56">
+
+#  nixos patch installer
 
 Install patches from Github pull requests directly to your NixOS machine
 

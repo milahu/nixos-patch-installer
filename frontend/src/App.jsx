@@ -1,48 +1,3 @@
-// TODO workflow
-// * select the file to patch (file explorer for nixpkgs lower dir)
-// * upload patched file
-// * compare patched file with files from lower dir (and upper dir, if exists)
-// * allow to apply patch = save file to upper dir ("are you sure??")
-
-// TODO
-// * allow to enter file path manually (relative to nixpkgs)
-// * list lower or upper files
-// * future: show git history of upper files
-// * prettier file browser
-
-// * implement a semi-automatic review process, according to
-//    * https://nixos.org/manual/nixpkgs/stable/#chap-reviewing-contributions
-//      The Nixpkgs project receives a fairly high number of contributions via GitHub pull requests.
-//      Reviewing and approving these is an important task and a way to contribute to the project.
-
-/* https://nixos.org/manual/nixos/stable/options.html#opt-nix.useSandbox
-nix.useSandbox
-If set, Nix will perform builds in a sandboxed environment that it will set up automatically for each build. This prevents impurities in builds by disallowing access to dependencies outside of the Nix store by using network and mount namespaces in a chroot environment. This is enabled by default even though it has a possible performance impact due to the initial setup time of a sandbox for each build. It doesn't affect derivation hashes, so changing this option will not trigger a rebuild of packages.
-
-Type: boolean or one of "relaxed"
-
-Default: true
-
-Declared by:
-
-<nixpkgs/nixos/modules/services/misc/nix-daemon.nix>
-*/
-
-/* PR template
-###### Things done
-* [ ]  Tested using sandboxing ([nix.useSandbox](https://nixos.org/nixos/manual/options.html#opt-nix.useSandbox) on NixOS, or option `sandbox` in [`nix.conf`](https://nixos.org/nix/manual/#sec-conf-file) on non-NixOS linux)
-* Built on platform(s)
-  * [ ]  NixOS
-  * [ ]  macOS
-  * [ ]  other Linux distributions
-* [ ]  Tested via one or more NixOS test(s) if existing and applicable for the change (look inside [nixos/tests](https://github.com/NixOS/nixpkgs/blob/master/nixos/tests))
-* [ ]  Tested compilation of all pkgs that depend on this change using `nix-shell -p nixpkgs-review --run "nixpkgs-review wip"`
-* [ ]  Tested execution of all binary files (usually in `./result/bin/`)
-* [ ]  Determined the impact on package closure size (by running `nix path-info -S` before and after)
-* [ ]  Ensured that relevant documentation is up to date
-* [ ]  Fits [CONTRIBUTING.md](https://github.com/NixOS/nixpkgs/blob/master/.github/CONTRIBUTING.md).
-*/
-
 import { createSignal, createState, onMount } from "solid-js";
 
 import { glob as globalStyle } from "solid-styled-components";
@@ -64,6 +19,10 @@ hljs.registerLanguage('nix', hljsLangNix);
 hljs.registerLanguage('bash', hljsLangBash);
 hljs.registerLanguage('makefile', hljsLangMakefile);
 hljs.registerLanguage('diff', hljsLangDiff);
+
+const highlight = (src, path) => hljs.highlight(src, { language: path.split(".").slice(-1)[0] }).value;
+
+
 
 /*
   // FIXME hide/show parent dirs
@@ -96,6 +55,8 @@ globalStyle(`
 
   body { padding: 0.5em; }
 `);
+
+
 
 function TreeView(props) {
   return (
@@ -133,6 +94,91 @@ function TreeView(props) {
 }
 
 
+
+function JobView(props) {
+  return (
+    <div class={(() => (props.prefix ? 'job-view' : 'job-view root'))()}>
+      <Show when={props.job} fallback={
+        <div>( no job )</div>
+      }>
+        <Show when={props.job.readyTime} fallback={
+          <div>( job {props.job.jobId} is loading ... )</div>
+        }>
+          <div>
+            <div>job {props.job.jobId}</div>
+            <div>
+              download and diff took {' '}
+              {roundFloat((props.job.readyTime - props.job.startTime), 2)}
+              {' '} seconds
+            </div>
+            <div>{props.job.filesCount} files</div>
+          </div>
+          <For each={props.job.files} fallback={
+            <div>( no job files )</div>
+          }>
+            {(file, fileId) => {
+              // TODO use solidjs styled components
+              globalStyle(`pre.file { white-space: pre-wrap; text-align: left; font-family: monospace; }`);
+
+              const fileExt = file.filename.split(".").slice(-1)[0];
+              //const fileExt = path => path.split(".").slice(-1)[0]; // TODO need this?
+
+              const fileLower = () => highlight(file.lowerText, fileExt);
+              const fileUpper = () => highlight(file.upperText, fileExt);
+              const fileText = () => highlight(file.fileText, fileExt);
+              const fileDiff = () => highlight(file.patchText, 'diff');
+
+              return (
+                <details>
+                  <summary>{file.filename}</summary>
+
+                  <div>filename = {file.filename}</div>
+                  <div>raw_url = <a href={file.raw_url}>{file.raw_url}</a></div>
+                  <div>sha = {file.sha}</div>
+                  <div>localPath = {file.localPath}</div>
+
+                  <details>
+                    <summary>github vs patched</summary>
+                    <pre class="file github-diff" innerHTML={fileDiff()} />
+                  </details>
+                  <details>
+                    <summary>patched</summary>
+                    <pre class="file lower" innerHTML={fileText()} />
+                  </details>
+
+                  <details>
+                    <summary>lower vs patched</summary>
+                    <pre class="file lower-diff" innerHTML={file.lowerDiff} />
+                  </details>
+                  <details>
+                    <summary>lower</summary>
+                    <pre class="file lower" innerHTML={fileLower()} />
+                  </details>
+
+                  <Show when={file.upperDiff}>
+                    <details>
+                      <summary>upper vs patched</summary>
+                      <pre class="file upper-diff" innerHTML={file.upperDiff} />
+                    </details>
+                    <details>
+                      <summary>upper</summary>
+                      <pre class="file upper" innerHTML={fileUpper()} />
+                    </details>
+                  </Show>
+                </details>
+              );
+            }}
+          </For>
+        </Show>
+      </Show>
+    </div>
+  );
+}
+
+
+
+const roundFloat = (number, precision) => parseFloat(number.toFixed(precision));
+
 function postOptions(data) {
   return {
     method: 'POST',
@@ -155,42 +201,43 @@ function parseQuery(queryStr) {
 function App() {
 
   let fileInput;
-  let jobstatusContainer;
 
   const [state, setState] = createState({
     fileList: [],
     fileSelected: '',
+    patchedFiles: [],
+    job: null,
+    diffData: null,
   });
-  const selectFile = path => setState('fileSelected', path);
+
+
 
   onMount(async () => {
     const queryStr = window.location.hash.slice(1);
     const query = parseQuery(queryStr);
     if (query.install) {
-      console.log(`install. url = ${query.install}`);
+      //console.log(`install. url = ${query.install}`);
       const dataObject = { url: query.install };
       const response = await fetch(`/backend/install`, postOptions(dataObject));
       if (!response.ok) { console.log(`http request error ${response.status}`); return; }
       const responseData = await response.json();
-      console.log("install response:"); console.dir(responseData);
+      setState('job', { jobId: responseData.jobId, url: responseData.url }); // show 'job x is loading ...'
+      //console.log("install response:"); console.dir(responseData);
       // start polling the backend for the job status ...
       setTimeout(() => pollInstallJobStatus(responseData.jobId), 100);
     }
+    loadFiles(); // ... for TreeView
   })
 
 
 
   async function pollInstallJobStatus(jobId, step = 0) {
-    console.log(`poll install job STATUS. job ${jobId} + step ${step}`);
+    //console.log(`poll install job STATUS. job ${jobId} + step ${step}`);
     var dataObject = { jobId };
     var response = await fetch(`/backend/jobstatus`, postOptions(dataObject));
     if (!response.ok) { console.log(`http request error ${response.status}`); return; }
     var jobStatus = await response.json();
-    console.log("jobstatus response:"); console.dir(jobStatus);
-
-    // TODO visualize job status ...
-    jobstatusContainer.innerHTML = JSON.stringify(jobStatus, null, 2);
-
+    //console.log("jobstatus response:"); console.dir(jobStatus);
     // repeat poll ...
     // latency for a small patch: 2 second
     if (jobStatus.readyTime == undefined) {
@@ -200,152 +247,107 @@ function App() {
       else
         return console.log(`stop polling job ${jobId}`); // give up. TODO better
     }
-
     // done polling. job data is ready :)
-    //if (jobStatus.readyTime != undefined) {
-    console.log('job is downloaded and diffed -> time to audit :)')
     // visualize the patch auditing
-
-    console.log(`poll install job DATA. job ${jobId}`);
+    //console.log(`poll install job DATA. job ${jobId}`);
     var dataObject = { jobId };
     var response = await fetch(`/backend/jobdata`, postOptions(dataObject));
     if (!response.ok) { console.log(`http request error ${response.status}`); return; }
     const jobData = await response.json();
-    console.log("jobdata response:"); console.dir(jobData);
-    const job = jobData.job;
+    //console.log("jobdata response:"); console.dir(jobData);
+    if (jobData.job.files.length == 0) { console.log('error: no files in job data'); return; }
 
-    if (job.files.length == 0) {
-      console.log('error: no files in job data');
-      return;
-    }
-
-    const file = job.files[0]; // TODO show all files (use a tabs widget)
-
-
-    const fileExt = file.filename.split(".").slice(-1)[0];
-console.log('get hl');
-    const hl = str => hljs.highlight(str, { language: fileExt }).value;
-
-console.log('hl ... ext = ' + fileExt);
-console.log('filename = ' + file.filename);
-
-    // TODO syntax highlight
-    upperContainer.innerHTML = hl(file.upperText);
-console.log('hl 2');
-    upperDiffContainer.innerHTML = file.upperDiff;
-console.log('hl 3');
-    lowerContainer.innerHTML = hl(file.lowerText);
-console.log('hl 4');
-    lowerDiffContainer.innerHTML = file.lowerDiff;
-console.log('hl 5');
-    bContainer.innerHTML = hl(file.fileText);
+    setState('job', jobData.job);
   }
 
-  //file.upperDiff = htmlOfAnsi(diffText);
+
 
   async function loadFiles(node = null, prefix = '', get = null) {
-    //const path = prefix + (node ? get.name(node) : '');
-
-    //get.path = (node, prefix) => prefix ? `${prefix}/${get.name(node)}` : get.name(node);
     const path = (node && get) ? get.path(node, prefix) : '';
-
-
-    console.log(`loadFiles. path = ${path}`);
+    //console.log(`loadFiles. path = ${path}`);
     const dataObject = { path };
     const response = await fetch(`/backend/list`, postOptions(dataObject));
-    //response.status; // => 404
-    if (!response.ok) {
-      console.log(`http request error ${response.status}`);
-      return;
-    }
+    if (!response.ok) { console.log(`http request error ${response.status}`); return; }
     const responseData = await response.json();
-    //setState('fileList', old => responseData.files);
-    console.dir(responseData.files);
-    if (state.fileList.length == 0) {
-      // init
-      console.log(`init file list`)
-      setState('fileList', responseData.files);
-    }
+    //console.dir(responseData.files);
+    if (!state.fileList || state.fileList.length == 0)
+      setState('fileList', responseData.files); // init
     else {
-      // add
-      // FIXME files added, but not visible -> manually trigger reaction?
-      console.log(`add files for ${path}`)
-
+      //console.log(`add files for path ${path}`)
       const keyPath = ['fileList'];
       const childNodesIdx = 3;
       let parentDir = state.fileList;
       path.split('/').filter(Boolean).forEach((d, di) => {
         const i = parentDir.findIndex(([ depth, type, file, arg ]) => (type == 'd' && file == d));
-        keyPath.push(i);
-        parentDir = parentDir[i];
-        keyPath.push(childNodesIdx);
-        parentDir = parentDir[childNodesIdx];
+        keyPath.push(i); parentDir = parentDir[i];
+        keyPath.push(childNodesIdx); parentDir = parentDir[childNodesIdx];
       })
       setState(...keyPath, responseData.files);
     }
   }
 
+
+
   function handleUpload(event) {
     event.preventDefault();
-    console.log('submit');
-
+    //console.log('submit');
     var fileReader = new FileReader();
     fileReader.onload = async event => {
       const bText = event.target.result;
       const bExt = fileInput.files[0].name.split(".").slice(-1)[0];
-      bContainer.innerHTML = hljs.highlight(bText, {language: bExt}).value;
-
+      bContainer.innerHTML = highlight(bText, bExt);
       const dataObject = {
-        a: state.fileSelected, // 'nixos/modules/services/networking/firewall.nix', // TODO
+        a: state.fileSelected,
         b: fileInput.files[0].name,
         bTime: fileInput.files[0].lastModified,
         bSize: fileInput.files[0].size,
         bText,
       };
+      const response = await fetch(`/backend/diff`, postOptions(dataObject));
+      if (!response.ok) { console.log(`http request error ${response.status}`); return; }
+      const diffData = await response.json();
+      //console.dir({ diffData });
 
-      const options = {
-        method: 'POST',
-        body: JSON.stringify(dataObject),
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      };
-
-      const response = await fetch(`/backend/diff`, options);
-
-      //response.status; // => 404
-      if (!response.ok) {
-        console.log(`http request error ${response.status}`);
-        return;
-      }
-
-      const responseData = await response.json();
-      console.dir({ responseData });
-
-      diffContainer.innerHTML = responseData.diffHtml;
-      aContainer.innerHTML = hljs.highlight(responseData.aText, {language: 'nix'}).value;
-
+      setState('diffData', diffData);
+      //diffContainer.innerHTML = diffData.diffHtml;
+      //aContainer.innerHTML = highlight(diffData.aText, 'nix');
+      // TODO render state.diffData
     };
     fileReader.readAsText(fileInput.files[0], "UTF-8");
   }
 
-  let diffContainer;
-  let aContainer;
-  let bContainer;
-
-  let upperContainer;
-  let upperDiffContainer;
-
-  let lowerContainer;
-  let lowerDiffContainer;
 
 
+  function fileListGetters() {
+    const get = {};
+    get.isLeaf = node => (node[1] != 'd');
+    get.name = node => node[2];
+    get.path = (node, prefix) => prefix ? `${prefix}/${get.name(node)}` : get.name(node);
+    get.childNodes = node => node[3];
+    const fancyPath = (node, prefix) => (
+      prefix ? <>
+        <span class="prefix">{(() => prefix)()}/</span>
+        <span class="name">{get.name(node)}</span>
+      </> : get.name(node)
+    );
+    get.branchLabel = fancyPath;
+    get.emptyLabel = (prefix) => '( empty )';
+    const isLink = node => (node[1] == 'l');
+    const linkTarget = node => node[3];
+    get.leafLabel = (node, prefix) => {
+      if (isLink(node))
+        return <>
+          <span class="link-source">{fancyPath(node, prefix)}</span>{" -> "}
+          <span class="link-target">{linkTarget(node)}</span>
+        </>;
+      return <span class="file" onClick={() => setState('fileSelected', get.path(node, prefix))}>{fancyPath(node, prefix)}</span>;
+    };
+    return get;
+  }
 
-//      <button onClick={e => loadFiles()}>Load files</button>
-
-onMount(() => {
-  loadFiles();
-});
+  function fileListFilter() {
+    return node => (node[2][0] != '.'); // hide dotfiles
+  }
 
   return (
     <div class={styles.App}>
@@ -354,60 +356,10 @@ onMount(() => {
         <input type="file" name="bFile" ref={fileInput} />
         <input type="submit" value="Upload and Compare" />
       </form>
-      <h4>job status</h4>
-      <pre style="text-align: left" ref={jobstatusContainer}></pre>
-      <h4>files</h4>
-      <div><TreeView
-        data={state.fileList}
-        filter={node => (node[2][0] != '.')}
-        load={loadFiles}
-        get={(() => {
-          const get = {};
-          get.isLeaf = node => (node[1] != 'd');
-          get.name = node => node[2];
-          get.path = (node, prefix) => prefix ? `${prefix}/${get.name(node)}` : get.name(node);
-          get.childNodes = node => node[3];
-          //get.branchLabel = get.path;
-          const fancyPath = (node, prefix) => (
-            prefix ? <>
-              <span class="prefix">{(() => prefix)()}/</span>
-              <span class="name">{get.name(node)}</span>
-            </> : get.name(node)
-          );
-          const fancyPathZZZZZ = get.path;
-          get.branchLabel = fancyPath;
-          get.emptyLabel = (prefix) => '( empty )';
-          const isLink = node => (node[1] == 'l');
-          const linkTarget = node => node[3];
-          get.leafLabel = (node, prefix) => {
-            if (isLink(node))
-              return <>
-                <span class="link-source">{fancyPath(node, prefix)}</span>{" -> "}
-                <span class="link-target">{linkTarget(node)}</span>
-              </>;
-            return <span class="file" onClick={() => selectFile(get.path(node, prefix))}>{fancyPath(node, prefix)}</span>;
-          };
-          //depth: node => node[0], // not used. TODO remove?
-          //isDir: node => node[1] == 'd',
-          //isLink: node => node[1] == 'f',
-          //linkTarget: node => node[3],
-          return get;
-        })()}
-      /></div>
-      <h4>diff</h4>
-      <div ref={diffContainer} style="white-space: pre-wrap; text-align: left; font-family: monospace" />
-      <h4>a</h4>
-      <div ref={aContainer} style="white-space: pre-wrap; text-align: left; font-family: monospace" />
-      <h4>b</h4>
-      <div ref={bContainer} style="white-space: pre-wrap; text-align: left; font-family: monospace" />
-      <h4>upper</h4>
-      <div ref={upperContainer} style="white-space: pre-wrap; text-align: left; font-family: monospace" />
-      <h4>upperDiff</h4>
-      <div ref={upperDiffContainer} style="white-space: pre-wrap; text-align: left; font-family: monospace" />
-      <h4>lower</h4>
-      <div ref={lowerContainer} style="white-space: pre-wrap; text-align: left; font-family: monospace" />
-      <h4>lowerDiff</h4>
-      <div ref={lowerDiffContainer} style="white-space: pre-wrap; text-align: left; font-family: monospace" />
+      <h4>install job</h4>
+      <JobView job={state.job} />
+      <h4>file tree</h4>
+      <TreeView data={state.fileList} get={fileListGetters()} filter={fileListFilter()} load={loadFiles} />
     </div>
   );
 }

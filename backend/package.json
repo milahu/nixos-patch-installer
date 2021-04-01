@@ -7,6 +7,8 @@
     "start": "sudo node index.js"
   },
   "dependencies": {
-    "node-fetch": "*"
+    "node-fetch": "*",
+    "ansi-to-html": "*",
+    "express": "*"
   }
 }

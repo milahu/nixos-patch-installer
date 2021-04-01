@@ -164,7 +164,6 @@ function runServer({ scriptName, args, pkgPath, overlayBase, nixpkgsPath }) {
   const backendConfig = require("./config.json");
 
   const express = require('express');
-  const findPort = require('find-free-port-sync');
   const fetch = require('node-fetch');
   const path = require('path');
 
@@ -243,19 +242,19 @@ function runServer({ scriptName, args, pkgPath, overlayBase, nixpkgsPath }) {
       return;
     };
     const [, owner, repo, pull] = match;
-    console.dir({ owner, repo, pull });
+    //console.dir({ owner, repo, pull });
 
     const fileListUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${pull}/files`;
     const fileListRes = await fetch(fileListUrl);
     const fileList = await fileListRes.json();
     console.log("fileList:");
-    console.dir(fileList);
+    //console.dir(fileList);
     job.filesCount = fileList.length;
 
-    console.dir({ fileList });
+    //console.dir({ fileList });
 
     // download all the files!
-    console.log('download all the files!')
+    console.log(`download ${fileList.length} files ...`)
     for (const file of fileList) {
       const fileRes = await fetch(file.raw_url);
       const fileText = await fileRes.text();
@@ -579,6 +578,9 @@ function startOverlayfs(origdir, overlayBase) {
   symlink(dir.merge, dir.mergeLink);
   // lowerdir is shadowed = not accessible :(
 
+  console.log(`success: mounted overlayfs on ${dir.merge}`);
+
+  /*
   console.log([
     'success: mounted overlayfs:',
     `  dir.orig:  ${dir.orig}`,
@@ -587,6 +589,7 @@ function startOverlayfs(origdir, overlayBase) {
     `  dir.upper: ${dir.upper}`,
     `  dir.work:  ${dir.work}`,
   ].join('\n'));
+  */
 }
 
 function stopOverlayfs(origdir, overlayBase) {
@@ -603,6 +606,7 @@ function stopOverlayfs(origdir, overlayBase) {
   if (!exists(dir.merge)) throw `error: merge dir missing: ${dir.merge}`;
 
   exec(`umount ${dir.merge}`);
+  console.log(`success: stopped overlayfs on ${dir.merge}`);
 }
 
 

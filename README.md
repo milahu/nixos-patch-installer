@@ -333,6 +333,8 @@ https://security.stackexchange.com/questions/129350/node-js-rest-server-running-
 
 ## related
 
+* [NUR](https://github.com/nix-community/NUR) - Nix User Repositry - could be used as export target
+* [NixOS: Installing software from pull requests](https://dumpstack.io/1563582225_nixos_installing_software_from_pull_requests.html): import the full nixpkgs tarball + add package to packageOverrides
 * [Support flake references to patches (nix issue 3920)](https://github.com/NixOS/nix/issues/3920)
    * ""Support patching nixpkgs" which is meant to support users who track a specific branch of nixpkgs (like nixpkgs-unstable or some release branch) but you would like to apply some unmerged pull requests or some other patches to that revision. This is really common flow for linux users in general. What people currently do is fork nixpkgs, create a branch based on your desired upstream branch and cherry-pick the commits you need on top of that branch. Then everytime you need to upgrade nixpkgs you rebase your branch on the latest upstream branch that you're tracking. IMHO a kinda consuming process if you just want a few patches."
    * "cherry-pick patches against Nixpkgs"
@@ -344,12 +346,6 @@ https://security.stackexchange.com/questions/129350/node-js-rest-server-running-
    * "The problem with maintaining such a list of patches is that you have to resolve any conflicts manually, e.g. if you try to update the base Nixpkgs version. Whereas with `git rebase`, you get a more-or-less friendly way to resolve conflicts."
    * "I agree with @edolstra that nixpkgs source trees should be managed by outer program. Eventually, in future, whenever someone comes to do that..."
    * "Then everytime you need to upgrade nixpkgs you rebase your branch on the latest upstream branch that you're tracking. This process works but is a bit involved and somewhat untransparent." - "@P-E-Meunier could this be a case where [Pijul](https://pijul.com/manual/why_pijul.html) could help? As a way to add/substract a set of changes on top of a frequently updated repository."
-* [Pijul](https://pijul.com/manual/why_pijul.html) Version Control System
-  * merge conflicts are better resolved than with git (and others)
-  * tracks changes - git tracks versions
-  * "The reason for the counter-intuitive behaviour in Git is that Git runs a heuristic algorithm called three-way merge or diff3, which extends diff to two “new” versions instead of one. Note, however, that diff has multiple optimal solutions, and the same change can be described equivalently by different diffs. While this is fine for diff (since the patch resulting from diff has a unique interpretation), it is ambiguous in the case of diff3 and might lead to arbitrary reshuffling of files."
-  * "Pijul for Git/Mercurial/SVN/… users: The main difference between Pijul and Git (and related systems) is that Pijul deals with changes (or patches), whereas Git deals only with snapshots (or versions)."
-  * "There are many advantages to using changes. First, changes are the intuitive atomic unit of work. Moreover, changes can be merged according to formal axioms that guarantee correctness in 100% of cases, whereas commits have to be /stitched together based on their contents, rather than on the edits that took place/. This is why in these systems, conflicts are often painful, as there is no real way to solve a conflict once and for all (for example, Git has the rerere command to try and simulate that in some cases)."
 * [Flake: patch inputs?](https://discourse.nixos.org/t/flake-patch-inputs/10854)
   * "What exactly do you want to patch?" - "Effektively the source tree of the underlying flake itself. In practical terms, I ultimately desire to have a dirt cheap, elegant and quick way of pulling in (several!) Pull Requests (for the most time) without the need to fork and build an aggregated branch manually."
 * [nixui](https://github.com/matejc/nixui), a "Graphical UI for Nix/NixOS" (5 years old, abandoned) ([screenshots](https://blog.matejc.com/blogs/myblog/graphical-ui-for-nix))
@@ -359,8 +355,31 @@ https://security.stackexchange.com/questions/129350/node-js-rest-server-running-
 * [nix flakes (edolstra's summary)](https://gist.github.com/edolstra/40da6e3a4d4ee8fd019395365e0772e7#overview)
 * [flake-utils-plus](https://github.com/gytis-ivaskevicius/flake-utils-plus/)
 "exposes a library abstraction to painlessly generate nixos flake configurations." ([sample](https://github.com/gytis-ivaskevicius/nixfiles/blob/master/flake.nix))
+* [How to ease/improve PR reviewing process #11166](https://github.com/NixOS/nixpkgs/issues/11166)
+  * "how to make more people participate in PR reviewal process and how to make it easier"
+  * "The question is: Merging does have what consequences?"
+* [Not enough maintainers](https://doronbehar.com/articles/why-I-chose-NixOS/#not-enough-maintainers): "small versions bump also fill up the PRs pool, making it hard to give attention to bigger PRs with more significant improvements / fixes. Moreover, many PRs are stale because their author hasn’t responded to reviewers’ comments and it’s hard for mergers to see which PRs are ready and which aren’t."
+* [[RFC 0030] Formalize review workflow](https://github.com/NixOS/rfcs/pull/30)
+* [[RFC 0050] Merge bot for maintainers](https://github.com/NixOS/rfcs/pull/50)
+* [I'm hoping that maybe Flakes[1] will help ease the issue/pull request situation by letting some of the namespaces move out of the main repository.](https://news.ycombinator.com/item?id=21306317)
+* https://github.com/Mic92/nixpkgs-review
 
-... but this project is not a graphical installer, rather a 'graphical patch manager'
+### not so related
+
+* [Pijul](https://pijul.com/manual/why_pijul.html) Version Control System
+  * merge conflicts are better resolved than with git (and others)
+  * tracks changes - git tracks versions
+  * "The reason for the counter-intuitive behaviour in Git is that Git runs a heuristic algorithm called three-way merge or diff3, which extends diff to two “new” versions instead of one. Note, however, that diff has multiple optimal solutions, and the same change can be described equivalently by different diffs. While this is fine for diff (since the patch resulting from diff has a unique interpretation), it is ambiguous in the case of diff3 and might lead to arbitrary reshuffling of files."
+  * "Pijul for Git/Mercurial/SVN/… users: The main difference between Pijul and Git (and related systems) is that Pijul deals with changes (or patches), whereas Git deals only with snapshots (or versions)."
+  * "There are many advantages to using changes. First, changes are the intuitive atomic unit of work. Moreover, changes can be merged according to formal axioms that guarantee correctness in 100% of cases, whereas commits have to be /stitched together based on their contents, rather than on the edits that took place/. This is why in these systems, conflicts are often painful, as there is no real way to solve a conflict once and for all (for example, Git has the rerere command to try and simulate that in some cases)."
+* https://github.com/ryantm/nixpkgs-update automate trivial package updates
+* https://grahamc.com/blog/an-epyc-nixos-build-farm
+* Automatic merging: [Pull requests becoming stale](https://github.com/NixOS/nixpkgs/issues/41793)
+  * "Pull requests seem to become stale at a time when they are ready to merge. I see this happening in a number of highly upvoted open pull requests."
+  * "I wonder what the bottleneck is here"
+  * "If we could give per folder/files commit rights, then it would be easier to give those rights."
+  * "Git with gitolite supports per folder/file permissions."
+* [How many people are paid to work on Nix/Nixpkgs?](https://discourse.nixos.org/t/how-many-people-are-paid-to-work-on-nix-nixpkgs/8307)
 
 ## license
 

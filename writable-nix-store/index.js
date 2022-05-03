@@ -58,6 +58,7 @@ const isCommand = command => new Set(commandList).has(command);
 
 const os = require('os');
 const fs = require('fs');
+const path = require('path');
 const cp = require('child_process');
 
 // UTC timestamp (seconds since 1970-01-01)
@@ -125,14 +126,16 @@ const exec = cmd => {
 
 function getOverlayDirs(lowerDir, overlayBase) {
   const sep = (lowerDir == overlayBase) ? '.overlayfs.' : '/';
-  // note: lower == mount
-  // this will shadow the lower dir
-  // -> bind-mount lower to lowerBak
+  // note: hide == mount
+  // hide is shadowed by mount
+  // -> bind-mount hide to lower
   return {
-    lower: lowerDir,
+    hide: lowerDir,
     mount: lowerDir,
-    lowerBak: `${overlayBase}${sep}lower`,
-    upper: `${overlayBase}${sep}upper`,
+    //lower: `${overlayBase}${sep}lower`,
+    lower: path.join('/a', lowerDir), // example: /a/nix/store
+    //upper: `${overlayBase}${sep}upper`,
+    upper: path.join('/b', lowerDir), // example: /b/nix/store
     work: `${overlayBase}${sep}work`,
   };
 }
@@ -188,18 +191,22 @@ function startOverlayfs(lowerDir, overlayBase) {
 
   mkdir(overlay.upper, { canExist: true });
   mkdir(overlay.work, { canExist: true });
-  mkdir(overlay.lowerBak, { canExist: true });
+  mkdir(overlay.lower, { canExist: true });
 
   // TODO print the "before" mounts. mount | grep store
 
   // https://superuser.com/questions/1314003/how-can-i-access-the-original-files-the-lowerdir-of-an-overlay-mounted-on-the
-  exec(`mount --bind ${overlay.mount} ${overlay.lowerBak}`);
-  exec(`mount --make-private ${overlay.lowerBak}`);
+  exec(`mount --bind ${overlay.mount} ${overlay.lower}`);
+  exec(`mount --make-private ${overlay.lower}`);
 
   const mountOptions = [
-    `lowerdir=${overlay.lower}`,
+    `lowerdir=${overlay.hide}`,
     `upperdir=${overlay.upper}`,
     `workdir=${overlay.work}`,
+    // fix error: stale file handle
+    // https://bbs.archlinux.org/viewtopic.php?id=265312
+    'index=off',
+    'metacopy=off',
   ].join(',');
   exec(`mount -t overlay overlay -o ${mountOptions} ${overlay.mount}`);
 
@@ -209,11 +216,11 @@ function startOverlayfs(lowerDir, overlayBase) {
 
   console.log([
     'success: mounted overlayfs:',
+    `  overlay.hide:  ${overlay.hide}`,
     `  overlay.mount: ${overlay.mount}`,
-    `  overlay.lower: ${overlay.lower}`,
-    `  overlay.lowerBak: ${overlay.lowerBak}`,
-    `  overlay.upper: ${overlay.upper}`,
     `  overlay.work:  ${overlay.work}`,
+    `  overlay.lower: ${overlay.lower}`,
+    `  overlay.upper: ${overlay.upper}`,
   ].join('\n'));
 }
 
@@ -230,14 +237,14 @@ function stopOverlayfs(lowerDir, overlayBase) {
   else {
     console.log(`not mounted: ${overlay.mount}`);
   }
-  if (isMountedBind(overlay.lowerBak)) {
+  if (isMountedBind(overlay.lower)) {
     // need "--lazy" to fix "umount: /nix/store: target is busy."
     // https://stackoverflow.com/a/19969471/10440128
-    exec(`umount --lazy ${overlay.lowerBak}`);
-    console.log(`success: unmounted lowerBak from ${overlay.lowerBak}`);
+    exec(`umount --lazy ${overlay.lower}`);
+    console.log(`success: unmounted lower from ${overlay.lower}`);
   }
   else {
-    console.log(`not mounted: ${overlay.lowerBak}`);
+    console.log(`not mounted: ${overlay.lower}`);
   }
 }
 

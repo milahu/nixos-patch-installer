@@ -10,7 +10,8 @@
     {
       "js": ["content.js"],
       "matches": [
-      	"https://github.com/NixOS/nixpkgs/pull/*"
+        "https://github.com/NixOS/nixpkgs/pulls",
+        "https://github.com/NixOS/nixpkgs/pull/*"
       ]
     }
   ],

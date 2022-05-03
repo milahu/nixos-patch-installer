@@ -13,6 +13,11 @@ else {
 
 function addButton({ backendUrl }) {
 
+  if (backendUrl == undefined) {
+    alert('extension nixos-patch-installer: please set backend url');
+    return;
+  }
+
   //console.log(`content.js: got backendUrl ${backendUrl}`);
 
   // https://www.vectorlogo.zone/logos/nixos/nixos-icon.svg
@@ -38,16 +43,34 @@ function addButton({ backendUrl }) {
     </svg>
   `;
 
-  const a = document.createElement('a');
+  if (document.location.href == 'https://github.com/NixOS/nixpkgs/pulls') {
+    const a = document.createElement('a');
+    const link_text = 'Relevant'
+    a.title = 'Find relevant PRs for your NixOS machine';
+    a.innerHTML = `${nixos_icon_svg} ${link_text}`;
+  
+    a.id = link_id;
+    a.className = 'js-selected-navigation-item subnav-item keychainify-checked';
+    
+    a.href = `${backendUrl}#pulls`;
+    a.target = '_blank';
+    a.onclick = event => {
+      event.stopPropagation(); // disable github click handler
+    };
 
-  const link_text = 'Install Patch'
-  a.title = 'Install this patch on your NixOS machine';
-  a.innerHTML = `${nixos_icon_svg} ${link_text}`;
+    document.querySelector('nav.subnav-links').prepend(a);
+  }
+  else {
+    const a = document.createElement('a');
+    const link_text = 'Install Patch'
+    a.title = 'Install this patch on your NixOS machine';
+    a.innerHTML = `${nixos_icon_svg} ${link_text}`;
+  
+    a.id = link_id;
+    a.className = 'tabnav-tab flex-shrink-0  js-pjax-history-navigate';
+    a.href = `${backendUrl}#install=${window.location.href}`;
+    a.target = '_blank';
 
-  a.id = link_id;
-  a.className = 'tabnav-tab flex-shrink-0  js-pjax-history-navigate';
-  a.href = `${backendUrl}#install=${window.location.href}`;
-  a.target = '_blank';
-
-  document.querySelector('nav.tabnav-tabs').appendChild(a);
+    document.querySelector('nav.tabnav-tabs').append(a);
+  }
 }

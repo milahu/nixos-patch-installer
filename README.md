@@ -228,6 +228,14 @@ samples:
   backend/index.js patch nixos/modules/services/networking/firewall.nix firewall.patched.nix
 ```
 
+### security
+
+installing patches is always a risk
+
+the browser extension allows us to set any host URL  
+so we can also send patches to a virtual machine  
+on which the frontend and backend are running
+
 ## todo
 
 * rewrite the backend http server with [koa](https://github.com/koajs/koa) (with [vite](https://github.com/vitejs/vite), koa works better than express)
@@ -252,6 +260,9 @@ samples:
 * list lower or upper files
 * future: show git history of upper files
 * prettier file browser
+* allow to edit /etc/nixos/configuration.nix (etc) in the frontend
+* allow to run `sudo nixos-rebuild switch` in the frontend and see the output
+* expose a bash shell in the frontend for testing on remote/virtual machines
 
 ### review helper
 

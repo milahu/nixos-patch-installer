@@ -10,6 +10,8 @@ let isVerbose = false;
 
 const commandList = ['start', 'stop', 'diff', 'patch', 'serve'];
 
+
+
 function main(argv) {
 
   //const scriptName = basename(argv[0]);
@@ -36,13 +38,21 @@ function main(argv) {
   }));
   if (isVerbose) console.log(`found channels:\n  ${channelList.map(c => `${c.name} -> ${c.path}`).join('\n  ')}`)
 
-  channelList.forEach(channel => {
+  // TODO what channel to use?
+  // packages in nixpkgs + modules in nixos (?)
+  const channel = (
+    channelList.find(c => c.name == 'nixpkgs') ||
+    channelList.find(c => c.name == 'nixos') ||
+    channelList[0]
+  );
+  //channelList.forEach(channel => {
+    console.log(`using channel ${channel.name} in ${channel.path}`);
     const pkgPath = getPkgPath(channel.path);
     const nixpkgsPath = `${pkgPath}/${channel.name}`
     const pkgDir = basename(pkgPath);
     const overlayBase = `/nix/overlay/${pkgDir}`;
 
-    if (channel.name != 'nixpkgs') return; // use only nixpkgs channel
+    //if (channel.name != 'nixpkgs') return; // use only nixpkgs channel
     // nixpkgs channel seems to be used for packages AND modules
 
     //console.dir({ pkgPath, pkgDir, overlayBase, nixpkgsPath })
@@ -54,6 +64,7 @@ function main(argv) {
       stopOverlayfs(pkgPath, overlayBase);
     }
     else if (command == 'serve') {
+      console.log(`start backend server ...`)
       runServer({ scriptName, args, pkgPath, overlayBase, nixpkgsPath });
     }
     else if (command == 'diff') {
@@ -73,7 +84,7 @@ function main(argv) {
       //console.dir({ overlayDir, pkgPath, origdir: pkgPath, overlayBase, nixpkgsPath, lowerPath, channel, });
       copy(upperFile, mergeFile);
     }
-  });
+  //});
 }
 
 
@@ -132,6 +143,8 @@ function handleDiff({ scriptName, command, args, pkgPath, overlayBase, nixpkgsPa
   }
 }
 
+
+
 // based on https://techbrij.com/nodejs-traverse-directory-recursively-depth
 function findFiles(dirPath, maxDepth=1, depth=0) {
   const dirs = [];
@@ -159,7 +172,12 @@ function findFiles(dirPath, maxDepth=1, depth=0) {
   return dirs.concat(files); // dirs first
 }
 
+
+
 function runServer({ scriptName, args, pkgPath, overlayBase, nixpkgsPath }) {
+
+  console.log(`runServer args:`)
+  console.dir({ scriptName, args, pkgPath, overlayBase, nixpkgsPath });
 
   const backendConfig = require("./config.json");
 
@@ -180,11 +198,12 @@ function runServer({ scriptName, args, pkgPath, overlayBase, nixpkgsPath }) {
 
   const serverCommands = [ 'list', 'diff', 'patch' ];
 
-  // route handlers
-
+  // backend state
+  const backendState = {};
+  backendState.pullsData = null;
   const installJobs = [];
 
-
+  // route handlers
 
   app.post('/backend/jobstatus', (req, res) => {
     const jobId = parseInt(req.body.jobId);
@@ -357,6 +376,17 @@ function runServer({ scriptName, args, pkgPath, overlayBase, nixpkgsPath }) {
 
 
 
+  app.post('/backend/read', (req, res) => {
+    console.dir({ path: req.body.path });
+    const path = (req.body.path || '').split('/').filter(d => d != '..').join('/'); // limit access
+    // TODO const where = (req.body.path || 'lower'); // lower | upper | merge
+    //res.json({ ok: 1, path, files: findFiles(`${nixpkgsPath}/${path}`, 1) });
+    console.log(`/backend/read: ${req.body.path} -> ${pkgPath}/${path}`);
+    res.json({ ok: 1, path, text: fs.readFileSync(`${pkgPath}/${path}`) });
+  });
+
+
+
   app.post('/backend/diff', (req, res) => {
 
     const { a, b, bText } = req.body;
@@ -383,6 +413,135 @@ function runServer({ scriptName, args, pkgPath, overlayBase, nixpkgsPath }) {
   app.get('/backend/patch', (req, res) => {
     res.json({ ok: 1 });
     // TODO copy patched file to the overlay merge dir
+  });
+
+
+
+  // show relevant pull-requests from github nixpkgs
+  app.post('/backend/pulls', (req, res) => {
+    console.log('/backend/pulls');
+    async function loadPulls() {
+      const fetch = require('node-fetch');
+
+      // TODO use nixpkgs-fmt --parse --output-format json <nix-file>
+      // https://github.com/nix-community/nixpkgs-fmt/pull/242
+      // https://github.com/nix-community/nixpkgs-fmt/pull/101
+      // or another rnix-parser to json interface https://github.com/nix-community/rnix-parser
+      // should be faster than tree-sitter parser
+      /////const parseNix = require('nix-parser/src/index.js'); // broken
+      /*
+      const TreeSitter = require('tree-sitter');
+      const TreeSitterNix = require('tree-sitter-nix');
+      const nixParser = new TreeSitter();
+      nixParser.setLanguage(TreeSitterNix);
+      */
+
+      // FIXME `nixpkgs-fmt --parse` is slow! even 3x slower with `--output-format json`
+      // -> use parser of `nix`?
+      function parseNix(str) {
+        const { spawnSync } = require('child_process');
+        return JSON.parse(spawnSync(
+          '/home/user/src/nixpkgs-fmt/target/debug/nixpkgs-fmt',
+          ['--parse', '--output-format', 'json'], {
+          input: str,
+          encoding: 'utf8', maxBuffer: Infinity, windowsHide: true,
+          }).stdout);
+      }
+      function parseNixFile(path) {
+        const { spawnSync } = require('child_process');
+        console.log('parse nix');
+        const subproc = spawnSync(
+          '/home/user/src/nixpkgs-fmt/target/debug/nixpkgs-fmt',
+          ['--parse', '--output-format', 'json', path], {
+          encoding: 'utf8', maxBuffer: Infinity, windowsHide: true,
+        });
+        console.log('parse json');
+        const res = JSON.parse(subproc.stdout);
+        console.log('return ast');
+        return res;
+      }
+
+
+      // slow!! takes 20 seconds to parse function parseNixFile(path) {
+        const { spawnSync } = require('child_process');
+        console.log('parse nix');
+        const subproc = spawnSync(
+          'nix-instantiate',
+          ['--parse', '--output-format', 'json', path], {
+          encoding: 'utf8', maxBuffer: Infinity, windowsHide: true,
+        });
+        console.log('parse json');
+        const res = JSON.parse(subproc.stdout);
+        console.log('return ast');
+        return res;
+      }
+
+      const owner = 'NixOS';
+      const repo = 'nixpkgs';
+      async function callApi(path) {
+        return await (await fetch(`https://api.github.com/repos/${owner}/${repo}/${path}`)).json();
+      }
+      backendState.pullsData = {};
+      backendState.pullsData.status = 'loading';
+
+      const allPackages = parseNixFile(`${nixpkgsPath}/pkgs/top-level/all-packages.nix`)
+// parse.js
+const path = "/nix/store/v0xwj556c69yppjzylz2diqk66vliswb-nixos-20.09.3857.b2a189a8618/nixos/pkgs/top-level/all-packages.nix";
+
+const fs = require('fs');
+const src = fs.readFileSync(path, 'utf8');
+
+console.log(src.match(/[^ \t]*? = callPackage .*?;/g).join('\n'));
+
+
+
+
+      // TODO fetch only open PRs (only via graphql api? or https+html)
+      backendState.pullsData.pulls = await callApi('pulls'); // todo cache + paginate
+
+      let pullsDone = false; // debug
+      for (const pull of backendState.pullsData.pulls) {
+        console.log(`pull ${pull.number}`); // debug
+        if (pull.files != undefined) console.log('WARNING pull.files is already defined');
+        pull.files = await callApi(`pulls/${pull.number}/files`);
+        for (const file of pull.files) {
+          console.log(`pull ${pull.number}: ${file.status} ${file.filename}`); // debug
+          const localFile = `${nixpkgsPath}/${file.filename}`;
+          console.log(`exists? ${fs.existsSync(localFile)} in ${localFile}`);
+          if (
+            file.status == 'modified' && // TODO more statusses?
+            file.filename.endsWith('.nix') &&
+            fs.existsSync(localFile)
+          ) {
+            const localText = fs.readFileSync(localFile, 'utf8');
+            // parse nix AST
+            const localAst = parseNix(localText);
+            console.dir(localAst);
+            // TODO find package declarations
+            // TODO what package is affected?
+            // -> package installed? -> PR is relevant
+
+            // TODO top-down? -> 
+            pullsDone = true; break; // debug
+          }
+        }
+        if (pullsDone) break; // debug
+      }
+
+      // TODO what package is affected?
+      const file = backendState.pullsData.pulls[0]._files[0];
+
+      // TODO paginate (fetch all pullData from github)
+      backendState.pullsData.status = 'ready';
+    }
+
+    if (backendState.pullsData != null) { // TODO api fetch pagination -> still: status loading
+      res.json({ ok: 1, status: 'ready', data: backendState.pullsData });
+    }
+    else {
+      res.json({ ok: 1, status: 'loading' });
+      loadPulls();
+    }
   });
 
 

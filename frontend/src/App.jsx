@@ -1,3 +1,6 @@
+// TODO https://github.com/mduclehcm/solid-router
+// TODO https://github.com/rturnq/solid-router
+
 import { createSignal, createState, onMount } from "solid-js";
 
 import { glob as globalStyle } from "solid-styled-components";
@@ -39,6 +42,7 @@ const highlight = (src, path) => hljs.highlight(src, { language: path.split(".")
 //      <For each={props.list} fallback={<li>list is empty</li>}>
 */
 
+//  ul.tree-view.root { height: 100%; /* fit to container */; overflow: auto; /* scroll on demand */ }
 
 globalStyle(`
   ul.tree-view.root { margin-left: 1px; margin-right: 1px; }
@@ -191,6 +195,7 @@ function parseQuery(queryStr) {
   return Object.fromEntries(
     queryStr.split('&').map(keyval => {
       const cut = keyval.indexOf('=');
+      if (cut == -1) return [keyval, true]; // key only
       const key = keyval.slice(0, cut);
       const val = keyval.slice(cut+1);
       return [key, val];
@@ -215,6 +220,7 @@ function App() {
   onMount(async () => {
     const queryStr = window.location.hash.slice(1);
     const query = parseQuery(queryStr);
+    console.log('query', query);
     if (query.install) {
       //console.log(`install. url = ${query.install}`);
       const dataObject = { url: query.install };
@@ -226,10 +232,14 @@ function App() {
       // start polling the backend for the job status ...
       setTimeout(() => pollInstallJobStatus(responseData.jobId), 100);
     }
-    loadFiles(); // ... for TreeView
+    else if (query.pulls) {
+      console.log(`call loadPulls`)
+      loadPulls();
+    }
+    else {
+      loadFiles(); // ... for TreeView
+    }
   })
-
-
 
   async function pollInstallJobStatus(jobId, step = 0) {
     //console.log(`poll install job STATUS. job ${jobId} + step ${step}`);
@@ -260,7 +270,21 @@ function App() {
     setState('job', jobData.job);
   }
 
-
+  async function loadPulls(step = 0) {
+    const dataObject = {};
+    const response = await fetch(`/backend/pulls`, postOptions(dataObject));
+    if (!response.ok) { console.log(`http request error ${response.status}`); return; }
+    const responseData = await response.json();
+    console.log("pulls response:"); console.dir(responseData);
+    setState('pulls', responseData);
+    if (responseData.status == 'loading' || responseData.data?.status == 'loading') {
+      console.log(`pulls loading ... (step ${step})`);
+      setTimeout(() => loadPulls(step + 1), 1000);
+    }
+    else if (responseData.status == 'ready') {
+      console.log("pulls ready");
+    }
+  }
 
   async function loadFiles(node = null, prefix = '', get = null) {
     const path = (node && get) ? get.path(node, prefix) : '';

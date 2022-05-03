@@ -7,8 +7,11 @@
     "start": "sudo node index.js"
   },
   "dependencies": {
-    "node-fetch": "*",
     "ansi-to-html": "*",
-    "express": "*"
+    "express": "*",
+    "nix-parser": "link:/home/user/src/node-nix-parser/node-nix-parser",
+    "node-fetch": "*",
+    "tree-sitter": "0.18.1",
+    "tree-sitter-nix": "github:cstrahan/tree-sitter-nix"
   }
 }

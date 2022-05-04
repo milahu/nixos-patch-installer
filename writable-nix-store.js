@@ -16,7 +16,7 @@
 // global state
 let isVerbose = false;
 
-const commandList = ['start', 'stop'];
+const commandList = ['start', 'stop', 'status'];
 
 function main(argv) {
   const scriptName = 'writable-nix-store/index.js';
@@ -38,6 +38,9 @@ function main(argv) {
   }
   else if (command == 'stop') {
     stopOverlayfs(storePath, overlayBase);
+  }
+  else if (command == 'status') {
+    statusOverlayfs(storePath, overlayBase);
   }
 }
 
@@ -246,6 +249,14 @@ function stopOverlayfs(lowerDir, overlayBase) {
   else {
     console.log(`not mounted: ${overlay.lower}`);
   }
+}
+
+
+
+function statusOverlayfs(lowerDir, overlayBase) {
+  const overlay = getOverlayDirs(lowerDir, overlayBase);
+  console.log('overlay ' + (isMountedOverlay(overlay.mount) ? 'on' : 'off'));
+  console.log('bind ' + (isMountedBind(overlay.lower) ? 'on' : 'off'));
 }
 
 

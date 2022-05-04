@@ -187,21 +187,25 @@ function startOverlayfs(lowerDir, overlayBase) {
   if (!overlayBase) throw `error: overlayBase is required`;
   const overlay = getOverlayDirs(lowerDir, overlayBase);
 
-  if (isMountedOverlay(overlay.mount)) {
-    console.log(`already mounted: ${overlay.mount}`);
-    return;
-  }
-
   mkdir(overlay.upper, { canExist: true });
   mkdir(overlay.work, { canExist: true });
   mkdir(overlay.lower, { canExist: true });
 
   // TODO print the "before" mounts. mount | grep store
 
+  if (isMountedBind(overlay.lower)) {
+    console.log(`already mounted: ${overlay.lower}`);
+  }
+  else {
   // https://superuser.com/questions/1314003/how-can-i-access-the-original-files-the-lowerdir-of-an-overlay-mounted-on-the
   exec(`mount --bind ${overlay.mount} ${overlay.lower}`);
   exec(`mount --make-private ${overlay.lower}`);
+  }
 
+  if (isMountedOverlay(overlay.mount)) {
+    console.log(`already mounted: ${overlay.mount}`);
+  }
+  else {
   const mountOptions = [
     `lowerdir=${overlay.hide}`,
     `upperdir=${overlay.upper}`,
@@ -212,11 +216,7 @@ function startOverlayfs(lowerDir, overlayBase) {
     'metacopy=off',
   ].join(',');
   exec(`mount -t overlay overlay -o ${mountOptions} ${overlay.mount}`);
-
-  // opaque (non-transparent) upper dirs: https://superuser.com/questions/1553610/possible-to-do-overlay-like-fs-where-dirs-in-the-upper-layer-completely-overshad
-
-  console.log(`success: mounted overlayfs on ${overlay.mount}`);
-
+  //console.log(`success: mounted overlayfs on ${overlay.mount}`);
   console.log([
     'success: mounted overlayfs:',
     `  overlay.hide:  ${overlay.hide}`,
@@ -225,6 +225,49 @@ function startOverlayfs(lowerDir, overlayBase) {
     `  overlay.lower: ${overlay.lower}`,
     `  overlay.upper: ${overlay.upper}`,
   ].join('\n'));
+  }
+
+  // opaque (non-transparent) upper dirs: https://superuser.com/questions/1553610/possible-to-do-overlay-like-fs-where-dirs-in-the-upper-layer-completely-overshad
+
+  console.log('disabling nixos-rebuild. stop the overlay to run nixos-rebuild');
+  if (!fs.existsSync('/run/current-system/sw/bin/.nixos-rebuild--disabled')) {
+    rename('/run/current-system/sw/bin/nixos-rebuild', '/run/current-system/sw/bin/.nixos-rebuild--disabled');
+  }
+  else {
+  // here we can patch nixos-rebuild, because the overlay is already mounted.
+  // nixos-rebuild lives in
+  // /run/current-system/sw -> /nix/store/*-system-path
+  // so the patched nixos-rebuild goes to /b/nix/store
+  const nixosRebuildDummy = [
+    '#! /usr/bin/env bash',
+    '',
+    "cat <<'EOF'",
+    'nixos-rebuild was disabled by writable-nix-store.js',
+    '',
+    'the original file is in /run/current-system/sw/bin/.nixos-rebuild--disabled',
+    '',
+    'nixos-rebuild is the one command',
+    'that you do *not* want to run',
+    'while the overlay is active',
+    '',
+    'if you do run `nixos-rebuild switch`',
+    'and then stop the overlay, your system is broken,',
+    'because many symlink targets have moved',
+    'from /nix/store to /b/nix/store.',
+    'then you need a hard reboot,',
+    'and boot a previous generation of your nixos config',
+    '',
+    'to run nixos-rebuild, first stop the overlay by running',
+    `sudo node ${process.argv[1]} stop`,
+    '',
+    'to manually stop the overlay, you can run',
+    `sudo umount --lazy -t overlay ${overlay.mount}`,
+    `sudo umount --lazy ${overlay.lower}`,
+    'EOF',
+  ].join('\n') + '\n';
+  fs.writeFileSync('/run/current-system/sw/bin/nixos-rebuild', nixosRebuildDummy, 'utf8');
+  fs.chmodSync('/run/current-system/sw/bin/nixos-rebuild', 0o555); // chmod +x
+  }
 }
 
 function stopOverlayfs(lowerDir, overlayBase) {
@@ -249,6 +292,16 @@ function stopOverlayfs(lowerDir, overlayBase) {
   else {
     console.log(`not mounted: ${overlay.lower}`);
   }
+  /*
+  not needed. the patched nixos-rebuild is now in /b/nix/store
+  if (!fs.existsSync('/run/current-system/sw/bin/nixos-rebuild--disabled')) {
+    console.log('already enabled: nixos-rebuild');
+  }
+  else {
+    console.log('enabling nixos-rebuild');
+    rename('/run/current-system/sw/bin/nixos-rebuild--disabled', '/run/current-system/sw/bin/nixos-rebuild');
+  }
+  */
 }
 
 

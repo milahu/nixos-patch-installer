@@ -236,7 +236,7 @@ function startOverlayfs(lowerDir, overlayBase) {
   else {
   // here we can patch nixos-rebuild, because the overlay is already mounted.
   // nixos-rebuild lives in
-  // /run/current-system/sw -> /nix/store/*-system-path
+  // /run/current-system/sw -> /nix/store/ *-system-path
   // so the patched nixos-rebuild goes to /b/nix/store
   const nixosRebuildDummy = [
     '#! /usr/bin/env bash',

@@ -292,6 +292,13 @@ function stopOverlayfs(lowerDir, overlayBase) {
   else {
     console.log(`not mounted: ${overlay.lower}`);
   }
+  console.log(`overlay stopped`);
+  console.log(``);
+  console.log(`you may need to run this to fix your store:`);
+  console.log(`sudo nix-store --verify --repair`);
+  console.log(``);
+  console.log(`to remove the patched files:`);
+  console.log(`sudo rm -rf /a /b`);
   /*
   not needed. the patched nixos-rebuild is now in /b/nix/store
   if (!fs.existsSync('/run/current-system/sw/bin/nixos-rebuild--disabled')) {
